@@ -502,7 +502,7 @@ export function HomePage({ onLogout }: HomePageProps) {
                       <div className="flex items-center gap-2">
                         <h2 className="text-xl font-semibold text-white flex items-center gap-2">
                           <Search className="text-teal-500" />
-                          Stock Symbol
+                          Stock/Index Symbol
                         </h2>
                         <Tooltip title="Enter NIFTY 500 stock symbols (e.g., RELIANCE, TCS)" arrow>
                           <Info className="w-4 h-4 text-slate-400 cursor-help" />
