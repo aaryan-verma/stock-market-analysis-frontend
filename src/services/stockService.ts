@@ -1,6 +1,7 @@
 import api from './api';
 import { StockAnalysisFormData } from '../types/stock';
 import dayjs from 'dayjs';
+import { getStockISIN, isStockIndex } from '../constants/stocks';
 
 interface LastOHLC {
   date: string;
@@ -35,11 +36,19 @@ export const stockService = {
       const startDate = dayjs(data.startDate).format('DD-MM-YYYY');
       const endDate = dayjs(data.endDate).format('DD-MM-YYYY');
       
+      // Get the ISIN for the selected stock
+      const isin = getStockISIN(data.stockName);
+      
+      // Check if the stock is an index
+      const isIndex = isStockIndex(data.stockName);
+      
       const response = await api.get(`/visualization/plot/${data.stockName}`, {
         params: {
           start_date: startDate,
           end_date: endDate,
-          period: data.timeFrame.charAt(0).toUpperCase() // Convert 'daily' to 'D', 'weekly' to 'W', etc.
+          period: data.timeFrame.charAt(0).toUpperCase(), // Convert 'daily' to 'D', 'weekly' to 'W', etc.
+          isin: isin, // Include ISIN in the request
+          is_index: isIndex // Indicate if this is an index
         }
       });
       
@@ -60,7 +69,18 @@ export const stockService = {
 
   async getStockNews(symbol: string): Promise<NewsItem[]> {
     try {
-      const response = await api.get(`/news/${symbol}`);
+      // Get the ISIN for the selected stock
+      const isin = getStockISIN(symbol);
+      
+      // Check if the stock is an index
+      const isIndex = isStockIndex(symbol);
+      
+      const response = await api.get(`/news/${symbol}`, {
+        params: {
+          isin: isin, // Include ISIN in the request
+          is_index: isIndex // Indicate if this is an index
+        }
+      });
       return response.data.news;
     } catch (error) {
       console.error('Error fetching news:', error);
