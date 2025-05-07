@@ -18,6 +18,7 @@ interface AnalysisResult {
   plot: string;
   interpretation: string;
   last_ohlc: LastOHLC;
+  ai_analysis?: any; // Add AI analysis to the result type
 }
 
 interface NewsItem {
@@ -52,14 +53,42 @@ export const stockService = {
         }
       });
       
+      // Extract the interpretation from the response - prioritize AI analysis if available
+      let interpretation = '';
+      
+      if (response.data.ai_analysis && response.data.ai_analysis.report && 
+          response.data.ai_analysis.report.price_interpretation) {
+        // Use AI analysis if available
+        interpretation = response.data.ai_analysis.report.price_interpretation;
+      } else if (response.data.interpretation) {
+        // Fallback to basic interpretation
+        interpretation = response.data.interpretation;
+      } else {
+        interpretation = "Technical analysis based on price levels and market conditions.";
+      }
+      
+      // Convert candle data to last_ohlc format
+      const lastOHLC: LastOHLC = {
+        date: new Date().toISOString().split('T')[0], // Use current date
+        open: response.data.candle?.Open || 0,
+        high: response.data.candle?.High || 0,
+        low: response.data.candle?.Low || 0,
+        close: response.data.candle?.Close || 0,
+        change: 0, // This might need calculation
+        volume: response.data.candle?.Volume || 0,
+        averageVolume: 0 // Not provided in the new response
+      };
+      
+      // Calculate change percentage if possible
+      if (lastOHLC.open > 0 && lastOHLC.close > 0) {
+        lastOHLC.change = ((lastOHLC.close - lastOHLC.open) / lastOHLC.open) * 100;
+      }
+      
       return {
         plot: `data:image/png;base64,${response.data.plot}`,
-        interpretation: response.data.interpretation,
-        last_ohlc: {
-          ...response.data.last_ohlc,
-          volume: response.data.last_ohlc.volume || 0,
-          averageVolume: response.data.last_ohlc.average_volume || 0
-        }
+        interpretation: interpretation,
+        last_ohlc: lastOHLC,
+        ai_analysis: response.data.ai_analysis // Pass through the entire AI analysis
       };
     } catch (error) {
       console.error('Error analyzing stock:', error);

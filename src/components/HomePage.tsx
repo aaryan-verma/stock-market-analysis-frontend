@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Calendar, BarChart2, ChevronRight, Settings, HelpCircle, Menu, X, LineChart, AlertCircle, CheckCircle2, XCircle, Star, Info, RotateCcw, MessageCircle } from "lucide-react";
+import { Search, Calendar, BarChart2, ChevronRight, Settings, HelpCircle, Menu, X, LineChart, AlertCircle, CheckCircle2, XCircle, Star, Info, RotateCcw, MessageCircle, Brain, Mail } from "lucide-react";
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -19,6 +19,7 @@ import Tooltip from '@mui/material/Tooltip';
 import { useSettings } from '../contexts/SettingsContext';
 import { SettingsModal } from './SettingsModal';
 import { AboutModal } from './AboutModal';
+import { HelpModal } from './HelpModal';
 import { v4 as uuidv4 } from 'uuid';
 import { WatchlistTab } from './WatchlistTab';
 import { config } from '../config';
@@ -85,28 +86,20 @@ const toastStyles = {
   },
 };
 
-const showAnalysisComplete = (interpretation: string) => {
+const showAnalysisComplete = () => {
   toast.success(
-    <div className="space-y-2 cursor-pointer" onClick={() => {
+    <div onClick={() => {
       document.querySelector('.analysis-results')?.scrollIntoView({ 
         behavior: 'smooth',
         block: 'start'
       });
     }}>
-      <div className="flex items-center gap-2">
-        <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
         <span className="font-semibold">Analysis Completed</span>
-      </div>
-      <p className="text-sm opacity-90">
-        {interpretation.split('\n')[0]}
-      </p>
-      <p className="text-xs opacity-75 mt-1">
-        Click to view results
-      </p>
     </div>,
     {
       ...toastStyles.success,
       className: 'analysis-toast',
+      toastId: 'analysis-complete',
     }
   );
 };
@@ -132,11 +125,62 @@ const timeFrameInfo = {
   yearly: "Study long-term trends (min 3 years of data)"
 };
 
+// Add CSS animation styles
+const animatedBorderStyles = `
+@keyframes borderAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-border-button {
+  position: relative;
+  border: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.animated-border-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0.5rem;
+  padding: 2px;
+  background: linear-gradient(
+    45deg,
+    #4f46e5,
+    #6366f1,
+    #818cf8,
+    #a5b4fc,
+    #6366f1,
+    #4f46e5
+  );
+  background-size: 400% 400%;
+  animation: borderAnimation 3s ease infinite;
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
+}
+`;
+
 export function HomePage({ onLogout }: HomePageProps) {
+  const { defaultDates, getDefaultStartDate, getDefaultEndDate } = useSettings();
   const [stockName, setStockName] = useState("");
   const [startDate, setStartDate] = useState<Dayjs | null>(null);
   const [endDate, setEndDate] = useState<Dayjs | null>(null);
-  const [timeFrame, setTimeFrame] = useState<TimeFrameOption | "">("");
+  const [timeFrame, setTimeFrame] = useState<TimeFrameOption | "">(defaultDates.defaultTimeframe as TimeFrameOption || "");
   const [analysisImage, setAnalysisImage] = useState<string | null>(null);
   const [interpretation, setInterpretation] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -147,6 +191,7 @@ export function HomePage({ onLogout }: HomePageProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const { theme, dashboardLayout } = useSettings();
   const location = useLocation();
   const [shouldFetchNews, setShouldFetchNews] = useState(false);
@@ -156,8 +201,24 @@ export function HomePage({ onLogout }: HomePageProps) {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
 
   useEffect(() => {
-    setStartDate(null);
-    setEndDate(null);
+    // Always set dates based on settings when changing routes
+    // or when defaultDates change
+    const start = dayjs(getDefaultStartDate());
+    const end = dayjs(getDefaultEndDate());
+    
+    console.log('Setting dates from defaults:');
+    console.log(`Start: ${start.format('YYYY-MM-DD')}`);
+    console.log(`End: ${end.format('YYYY-MM-DD')}`);
+    
+    setStartDate(start);
+    setEndDate(end);
+    
+    // Set timeframe from settings if not already set
+    if (!timeFrame) {
+      setTimeFrame(defaultDates.defaultTimeframe as TimeFrameOption);
+    }
+    
+    // Existing code for loading history
     const storedHistory = localStorage.getItem('analysisHistory');
     if (storedHistory) {
       setAnalysisHistory(JSON.parse(storedHistory));
@@ -166,7 +227,7 @@ export function HomePage({ onLogout }: HomePageProps) {
     if (savedWatchlist) {
       setWatchlist(JSON.parse(savedWatchlist));
     }
-  }, [location.pathname]);
+  }, [location.pathname, defaultDates, getDefaultStartDate, getDefaultEndDate]);
 
   const handleStockInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -229,6 +290,7 @@ export function HomePage({ onLogout }: HomePageProps) {
         analysisImage: analysisResult.plot,
         interpretation: analysisResult.interpretation,
         lastOHLC: analysisResult.last_ohlc,
+        aiAnalysis: analysisResult.ai_analysis,
         newsData
       };
 
@@ -244,7 +306,8 @@ export function HomePage({ onLogout }: HomePageProps) {
       setNewsData(newsData);
       setIsAnalysisCompleted(true);
       
-      showAnalysisComplete(analysisResult.interpretation);
+      // Show analysis complete toast without interpretation text
+      showAnalysisComplete();
 
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -254,8 +317,9 @@ export function HomePage({ onLogout }: HomePageProps) {
             <XCircle className="w-5 h-5 flex-shrink-0" />
             <span className="font-semibold">Analysis Failed</span>
           </div>
-          <p className="text-sm opacity-90">
-            Unable to complete analysis. Please try again.
+          <p className="text-sm opacity-90">Unable to complete analysis. Please try again.</p>
+          <p className="text-xs opacity-75 mt-1">
+            {error instanceof Error ? error.message : 'Unknown error'}
           </p>
         </div>,
         toastStyles.error
@@ -267,9 +331,18 @@ export function HomePage({ onLogout }: HomePageProps) {
 
   const handleNewAnalysis = () => {
     setStockName('');
-    setStartDate(null);
-    setEndDate(null);
-    setTimeFrame('');
+    
+    const start = dayjs(getDefaultStartDate());
+    const end = dayjs(getDefaultEndDate());
+    
+    console.log('Setting dates for new analysis:');
+    console.log(`Start: ${start.format('YYYY-MM-DD')}`);
+    console.log(`End: ${end.format('YYYY-MM-DD')}`);
+    
+    setStartDate(start);
+    setEndDate(end);
+    
+    setTimeFrame(defaultDates.defaultTimeframe as TimeFrameOption);
     setAnalysisImage(null);
     setInterpretation(null);
     setLastOHLC(null);
@@ -283,8 +356,18 @@ export function HomePage({ onLogout }: HomePageProps) {
   const loadPreviousAnalysis = (analysis: StoredAnalysis) => {
     setStockName(analysis.stockName);
     setTimeFrame(analysis.timeFrame as TimeFrameOption);
-    setStartDate(dayjs(analysis.startDate));
-    setEndDate(dayjs(analysis.endDate));
+    
+    // Parse the date strings and ensure they are valid dates
+    const startDateObj = dayjs(analysis.startDate);
+    const endDateObj = dayjs(analysis.endDate);
+    
+    console.log('Loading previous analysis dates:');
+    console.log(`Start: ${startDateObj.format('YYYY-MM-DD')}`);
+    console.log(`End: ${endDateObj.format('YYYY-MM-DD')}`);
+    
+    setStartDate(startDateObj);
+    setEndDate(endDateObj);
+    
     setAnalysisImage(analysis.analysisImage);
     setInterpretation(analysis.interpretation);
     setLastOHLC(analysis.lastOHLC);
@@ -327,100 +410,106 @@ export function HomePage({ onLogout }: HomePageProps) {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div className={`min-h-screen ${
-        theme === 'dark' 
-          ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
-          : 'bg-gradient-to-br from-slate-100 via-white to-slate-100'
-      }`}>
-        {/* Enhanced Header */}
-        <header className="sticky top-0 z-50 bg-gradient-to-r from-slate-900/95 to-slate-800/95 backdrop-blur-sm border-b border-slate-700 shadow-lg">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between h-16">
-              {/* Logo and Title */}
-              <div className="flex items-center space-x-3">
-                <BarChart2 className="w-8 h-8 text-teal-500" />
-                <h1 className="text-2xl font-bold text-white">
-                  Stock Analysis Dashboard
-                </h1>
-              </div>
-
-              {/* Desktop Navigation */}
-              <div className="hidden md:flex items-center space-x-4">
-                <button
-                  className="px-4 py-2 text-slate-300 hover:text-white flex items-center gap-2 rounded-lg hover:bg-slate-800/50 transition-all"
-                  onClick={() => toast.info('Help documentation coming soon!')}
-                >
-                  <HelpCircle className="w-5 h-5" />
-                  <span>Help</span>
-                </button>
-                <button
-                  className="px-4 py-2 text-slate-300 hover:text-white flex items-center gap-2 rounded-lg hover:bg-slate-800/50 transition-all"
-                  onClick={() => setIsAboutOpen(true)}
-                >
-                  <Info className="w-5 h-5" />
-                  <span>About</span>
-                </button>
-                <button
-                  className="px-4 py-2 text-slate-300 hover:text-white flex items-center gap-2 rounded-lg hover:bg-slate-800/50 transition-all"
-                  onClick={() => setIsSettingsOpen(true)}
-                >
-                  <Settings className="w-5 h-5" />
-                  <span>Settings</span>
-                </button>
-                <div className="w-px h-6 bg-slate-700" />
-                <Button variant="outline" onClick={onLogout}>
-                  Logout
-                </Button>
-              </div>
-
-              {/* Mobile Menu Button */}
+      <div className={`min-h-screen bg-slate-900 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+        {/* Header */}
+        <header className="bg-slate-800/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-20">
+          <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <BarChart2 className="text-teal-500 w-6 h-6" />
+              <h1 className="text-xl font-bold text-white hidden sm:block">Stock Market Analysis</h1>
+            </div>
+            
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center gap-4">
               <button
-                className="md:hidden p-2 text-slate-300 hover:text-white rounded-lg hover:bg-slate-800/50"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                onClick={() => setIsHelpOpen(true)}
+                className="p-2 text-slate-300 hover:text-white flex items-center gap-2"
               >
-                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                <HelpCircle className="w-5 h-5" />
+                <span>Help</span>
               </button>
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2 text-slate-300 hover:text-white flex items-center gap-2"
+              >
+                <Settings className="w-5 h-5" />
+                <span>Settings</span>
+              </button>
+              <button
+                onClick={() => setIsAboutOpen(true)}
+                className="p-2 text-slate-300 hover:text-white flex items-center gap-2"
+              >
+                <Info className="w-5 h-5" />
+                <span>About</span>
+              </button>
+              <Button
+                onClick={onLogout}
+                className="bg-red-500/20 text-red-300 hover:bg-red-500/30"
+              >
+                Logout
+              </Button>
+            </nav>
+            
+            {/* Mobile menu button */}
+            <div className="flex md:hidden">
+              <Button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2"
+                variant="outline"
+              >
+                {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </Button>
             </div>
           </div>
-
-          {/* Mobile Menu */}
+          
+          {/* Mobile Navigation Dropdown */}
           {isMenuOpen && (
-            <div className="md:hidden border-t border-slate-700 bg-slate-900/95 backdrop-blur-sm">
-              <div className="container mx-auto px-4 py-3 space-y-2">
+            <div className="container mx-auto px-4 py-4 bg-slate-800 border-t border-slate-700 md:hidden">
+              <div className="flex flex-col space-y-3">
                 <button
-                  className="w-full px-4 py-2 text-left text-slate-300 hover:text-white flex items-center gap-2 rounded-lg hover:bg-slate-800/50"
-                  onClick={() => toast.info('Help documentation coming soon!')}
+                  onClick={() => {
+                    setIsHelpOpen(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="p-2 text-slate-300 hover:text-white flex items-center gap-2"
                 >
                   <HelpCircle className="w-5 h-5" />
                   <span>Help</span>
                 </button>
                 <button
-                  className="w-full px-4 py-2 text-left text-slate-300 hover:text-white flex items-center gap-2 rounded-lg hover:bg-slate-800/50"
-                  onClick={() => setIsAboutOpen(true)}
-                >
-                  <Info className="w-5 h-5" />
-                  <span>About</span>
-                </button>
-                <button
-                  className="w-full px-4 py-2 text-left text-slate-300 hover:text-white flex items-center gap-2 rounded-lg hover:bg-slate-800/50"
-                  onClick={() => setIsSettingsOpen(true)}
+                  onClick={() => {
+                    setIsSettingsOpen(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="p-2 text-slate-300 hover:text-white flex items-center gap-2"
                 >
                   <Settings className="w-5 h-5" />
                   <span>Settings</span>
                 </button>
-                <div className="border-t border-slate-700 pt-2">
-                  <Button variant="outline" onClick={onLogout} className="w-full">
-                    Logout
-                  </Button>
-                </div>
+                <button
+                  onClick={() => {
+                    setIsAboutOpen(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="p-2 text-slate-300 hover:text-white flex items-center gap-2"
+                >
+                  <Info className="w-5 h-5" />
+                  <span>About</span>
+                </button>
+                <Button
+                  onClick={onLogout}
+                  className="bg-red-500/20 text-red-300 hover:bg-red-500/30 w-full justify-center"
+                >
+                  Logout
+                </Button>
               </div>
             </div>
           )}
         </header>
 
         {/* Main Content */}
-        <main className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <main className="container mx-auto px-4 py-6 md:py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
             {/* Input Form Section */}
             <Card className="lg:col-span-1 bg-slate-800/50 backdrop-blur border border-slate-700">
               {isAnalysisCompleted ? (
@@ -457,6 +546,49 @@ export function HomePage({ onLogout }: HomePageProps) {
                   {/* Analysis History */}
                   {analysisHistory.length > 0 && (
                     <div className="mt-6">
+                      <style>{animatedBorderStyles}</style>
+                      
+                      {/* PDF Generation Button - Always Visible */}
+                      <div className="mb-4 p-3 rounded-lg bg-slate-800/40 border border-slate-700">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Brain className="w-5 h-5 text-indigo-400" />
+                          <h4 className="text-md font-medium text-indigo-300">AI Analysis Export</h4>
+                        </div>
+                        <p className="text-sm text-slate-400 mb-3">Generate a detailed PDF report with AI insights and technical analysis.</p>
+                        <button
+                          onClick={() => {
+                            // Use the selected analysis if available, otherwise use the first one
+                            const analysisToUse = selectedAnalysisId 
+                              ? analysisHistory.find(a => a.id === selectedAnalysisId)
+                              : analysisHistory[0];
+                              
+                            if (analysisToUse?.aiAnalysis) {
+                              // Pass the analysis to the AnalysisPanel's PDF generation function
+                              const analysisPanel = document.querySelector('.analysis-results');
+                              if (analysisPanel) {
+                                const event = new CustomEvent('generatePdf', {
+                                  detail: { 
+                                    aiAnalysis: analysisToUse.aiAnalysis, 
+                                    stockSymbol: analysisToUse.stockName,
+                                    showEmailForm: true,  // Add flag to show email form
+                                    authToken: localStorage.getItem('accessToken') // Pass the auth token
+                                  }
+                                });
+                                analysisPanel.dispatchEvent(event);
+                              }
+                            } else {
+                              toast.info("Please select an analysis with AI data first");
+                            }
+                          }}
+                          className="animated-border-button w-full px-4 py-2.5 bg-indigo-600/20 text-indigo-300 
+                                    rounded-lg hover:bg-indigo-600/30 transition duration-300 
+                                    flex items-center justify-center gap-2"
+                        >
+                          <Mail className="w-4 h-4" />
+                          Email Analysis Report
+                        </button>
+                      </div>
+                      
                       <h4 className="text-md font-medium text-slate-300 mb-3">Previous Analyses</h4>
                       <div className="space-y-2 max-h-[300px] overflow-y-auto">
                         {analysisHistory.map((analysis) => (
@@ -513,7 +645,7 @@ export function HomePage({ onLogout }: HomePageProps) {
                           type="text"
                           value={stockName}
                           onChange={handleStockInputChange}
-                          placeholder="Search for a stock..."
+                          placeholder="Search for a NIFTY 500 stock..."
                           className="w-full bg-slate-700/50 border border-slate-600 rounded-lg px-4 py-3 text-white 
                                    placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500
                                    transition-all duration-200"
@@ -705,63 +837,63 @@ export function HomePage({ onLogout }: HomePageProps) {
 
             {/* Results Section */}
             <div className="lg:col-span-2 space-y-6 analysis-results">
-              {/* Analysis Tabs */}
-              <div className="flex gap-4 mb-6">
+              {/* Analysis Tabs - Responsive version */}
+              <div className="flex flex-wrap gap-2 sm:gap-4 mb-6 overflow-x-auto pb-2">
                 <button
                   onClick={() => setActiveTab('chart')}
-                  className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 
-                             flex items-center gap-2 relative group ${
-                      activeTab === 'chart'
-                        ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20'
-                        : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
-                    }`}
+                  className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg font-medium transition-all duration-300 
+                             flex items-center gap-1 sm:gap-2 relative group flex-shrink-0 text-sm sm:text-base ${
+                    activeTab === 'chart'
+                      ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20'
+                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  }`}
                 >
-                  <LineChart className={`w-5 h-5 transition-colors duration-300 ${
+                  <LineChart className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 ${
                     activeTab === 'chart' ? 'text-white' : 'text-teal-500'
                   }`} />
-                  Technical Analysis
+                  <span>Technical Analysis</span>
                   {activeTab === 'chart' && (
                     <span className="absolute bottom-0 left-0 w-full h-0.5 bg-white/50 
-                                    scale-x-100 transition-transform duration-300" />
+                                  scale-x-100 transition-transform duration-300" />
                   )}
                 </button>
                 <button
                   onClick={() => setActiveTab('sentiment')}
-                  className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 
-                             flex items-center gap-2 relative group ${
-                      activeTab === 'sentiment'
-                        ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20'
-                        : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
-                    }`}
+                  className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg font-medium transition-all duration-300 
+                             flex items-center gap-1 sm:gap-2 relative group flex-shrink-0 text-sm sm:text-base ${
+                    activeTab === 'sentiment'
+                      ? 'bg-teal-500 text-white shadow-lg shadow-teal-500/20'
+                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  }`}
                 >
-                  <MessageCircle className={`w-5 h-5 transition-colors duration-300 ${
+                  <MessageCircle className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 ${
                     activeTab === 'sentiment' ? 'text-white' : 'text-teal-500'
                   }`} />
-                  Sentiment Analysis
+                  <span>Sentiment</span>
                   {activeTab === 'sentiment' && (
                     <span className="absolute bottom-0 left-0 w-full h-0.5 bg-white/50 
-                                    scale-x-100 transition-transform duration-300" />
+                                  scale-x-100 transition-transform duration-300" />
                   )}
                 </button>
                 <button
                   onClick={() => setActiveTab('watchlist')}
-                  className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 
-                             flex items-center gap-2 relative group ${
-            activeTab === 'watchlist'
-              ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/20'
-              : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
-          }`}
+                  className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg font-medium transition-all duration-300 
+                             flex items-center gap-1 sm:gap-2 relative group flex-shrink-0 text-sm sm:text-base ${
+                    activeTab === 'watchlist'
+                      ? 'bg-yellow-500 text-white shadow-lg shadow-yellow-500/20'
+                      : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                  }`}
                 >
-                  <Star className={`w-5 h-5 transition-colors duration-300 ${
+                  <Star className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-300 ${
                     activeTab === 'watchlist' ? 'text-white' : 'text-yellow-500'
                   }`} />
-                  Watchlist
+                  <span>Watchlist</span>
                   {activeTab === 'watchlist' && (
                     <span className="absolute bottom-0 left-0 w-full h-0.5 bg-white/50 
-                                    scale-x-100 transition-transform duration-300" />
+                                  scale-x-100 transition-transform duration-300" />
                   )}
                 </button>
-            </div>
+              </div>
 
               {/* Analysis Results with conditional rendering */}
               {activeTab === 'chart' ? (
@@ -793,6 +925,9 @@ export function HomePage({ onLogout }: HomePageProps) {
                         onRemoveFromWatchlist={removeFromWatchlist}
                         stockSymbol={stockName}
                         isInWatchlist={watchlist.some(item => item.symbol === stockName)}
+                        aiAnalysis={selectedAnalysisId 
+                          ? analysisHistory.find(a => a.id === selectedAnalysisId)?.aiAnalysis 
+                          : analysisHistory[0]?.aiAnalysis}
                       />
                     )}
                   </>
@@ -827,6 +962,10 @@ export function HomePage({ onLogout }: HomePageProps) {
         <AboutModal 
           isOpen={isAboutOpen}
           onClose={() => setIsAboutOpen(false)}
+        />
+        <HelpModal 
+          isOpen={isHelpOpen}
+          onClose={() => setIsHelpOpen(false)}
         />
       </div>
     </LocalizationProvider>

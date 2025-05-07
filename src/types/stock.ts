@@ -18,6 +18,7 @@ export interface StoredAnalysis {
   interpretation: string;
   lastOHLC: LastOHLC;
   newsData: NewsItem[];
+  aiAnalysis?: any;
 }
 
 export interface LastOHLC {

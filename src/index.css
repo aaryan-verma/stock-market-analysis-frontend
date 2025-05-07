@@ -1,3 +1,53 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add responsive styles */
+@layer utilities {
+  /* Hide scrollbar but allow scrolling */
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+
+  /* For mobile overflow prevention */
+  .mobile-safe-scroll {
+    max-width: 100vw;
+    overflow-x: auto;
+  }
+  
+  /* Custom responsive text utils */
+  .text-responsive {
+    font-size: clamp(0.875rem, 2.5vw, 1rem);
+  }
+  
+  .text-responsive-lg {
+    font-size: clamp(1rem, 3vw, 1.25rem);
+  }
+}
+
+/* Make modal content scrollable on small screens without breaking the layout */
+@media (max-width: 640px) {
+  .max-h-modal {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  /* Improve touch targets on mobile */
+  button, a, input[type="button"], input[type="submit"] {
+    min-height: 2.5rem;
+  }
+  
+  /* Make sure inputs and selects have enough height on mobile */
+  input, select, textarea {
+    min-height: 2.75rem;
+  }
+}
