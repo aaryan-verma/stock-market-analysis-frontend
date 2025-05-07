@@ -57,7 +57,7 @@ export function SentimentAnalysis({ newsData: initialNewsData, symbol, shouldFet
   };
 
   const getImpactBadge = (impact: NewsItem['impact']) => {
-    const baseClasses = "text-xs px-2 py-1 rounded-full";
+    const baseClasses = "text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full whitespace-nowrap";
     switch (impact) {
       case 'high':
         return `${baseClasses} bg-red-500/20 text-red-500`;
@@ -70,41 +70,41 @@ export function SentimentAnalysis({ newsData: initialNewsData, symbol, shouldFet
 
   return (
     <Card>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-slate-200 flex items-center gap-2">
-            <Newspaper className="text-blue-500" />
-            Market Sentiment Analysis
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-200 flex items-center gap-1.5 sm:gap-2">
+            <Newspaper className="text-blue-500 w-5 h-5" />
+            Market Sentiment
           </h2>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {error && (
-              <div className="flex items-center gap-2 text-red-500">
-                <AlertCircle size={18} />
-                <span className="text-sm">Failed to load news</span>
+              <div className="flex items-center gap-1 sm:gap-2 text-red-500">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-xs sm:text-sm hidden sm:inline">Failed to load news</span>
               </div>
             )}
-            {loading && <Loader2 className="animate-spin text-blue-500" />}
+            {loading && <Loader2 className="animate-spin text-blue-500 w-4 h-4 sm:w-5 sm:h-5" />}
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {newsData.length === 0 ? (
-            <div className="text-center text-slate-400 py-8">
+            <div className="text-center text-slate-400 py-6 sm:py-8 text-sm sm:text-base">
               No news available for {symbol}
             </div>
           ) : (
             newsData.map((news, index) => (
               <div 
                 key={index} 
-                className={`p-4 rounded-lg border-l-4 ${
+                className={`p-3 sm:p-4 rounded-lg border-l-4 ${
                   getSentimentColor(news.sentiment)
                 }`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} className="text-slate-400" />
-                      <span className="text-sm text-slate-400">{news.date}</span>
+                <div className="flex items-start justify-between gap-3 sm:gap-4">
+                  <div className="flex-1 space-y-1.5 sm:space-y-2">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <Calendar className="text-slate-400 w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="text-xs sm:text-sm text-slate-400">{news.date}</span>
                       <span className={getImpactBadge(news.impact)}>
                         {news.impact.toUpperCase()} IMPACT
                       </span>
@@ -113,25 +113,25 @@ export function SentimentAnalysis({ newsData: initialNewsData, symbol, shouldFet
                           href={news.url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-blue-500 hover:text-blue-400 flex items-center gap-1"
+                          className="text-blue-500 hover:text-blue-400 flex items-center gap-1 ml-auto"
                         >
-                          <ExternalLink size={14} />
-                          <span className="text-sm">Read More</span>
+                          <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          <span className="text-xs sm:text-sm hidden sm:inline">Read More</span>
                         </a>
                       )}
                     </div>
-                    <p className="text-slate-200">{news.headline}</p>
+                    <p className="text-sm sm:text-base text-slate-200">{news.headline}</p>
                     {news.summary && (
-                      <p className="text-sm text-slate-400 mt-2">{news.summary}</p>
+                      <p className="text-xs sm:text-sm text-slate-400 mt-1 sm:mt-2">{news.summary}</p>
                     )}
                   </div>
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 pt-1">
                     {news.sentiment === 'positive' ? (
-                      <TrendingUp className="text-green-500" />
+                      <TrendingUp className="text-green-500 w-4 h-4 sm:w-5 sm:h-5" />
                     ) : news.sentiment === 'negative' ? (
-                      <TrendingDown className="text-red-500" />
+                      <TrendingDown className="text-red-500 w-4 h-4 sm:w-5 sm:h-5" />
                     ) : (
-                      <div className="w-6 h-0.5 bg-blue-500 rounded-full my-3" />
+                      <div className="w-4 sm:w-6 h-0.5 bg-blue-500 rounded-full my-3" />
                     )}
                   </div>
                 </div>
